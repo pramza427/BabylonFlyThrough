@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <title>Babylon.js sample code</title>
+
+        <!-- Babylon.js -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+        <script src="https://preview.babylonjs.com/ammo.js"></script>
+        <script src="https://preview.babylonjs.com/cannon.js"></script>
+        <script src="https://preview.babylonjs.com/Oimo.js"></script>
+        <script src="https://preview.babylonjs.com/earcut.min.js"></script>
+        <script src="https://preview.babylonjs.com/babylon.js"></script>
+        <script src="https://preview.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+        <script src="https://preview.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+        <script src="https://preview.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+        <script src="https://preview.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+        <script src="https://preview.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+        <script src="https://preview.babylonjs.com/gui/babylon.gui.min.js"></script>
+        <script src="https://preview.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+
+        <style>
+            html, body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+            }
+        </style>
+    </head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <script>
+        var canvas = document.getElementById("renderCanvas");
+
+        var engine = null;
+        var scene = null;
+        var sceneToRender = null;
+        var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); };
+        const createScene = function () {
+    const scene = new BABYLON.Scene(engine);
+    
+    const camera = new BABYLON.FreeCamera("Camera", new BABYLON.Vector3(-50, 1, -50), scene);
+    camera.attachControl(canvas, true);
+     // Light
+   // const light = new BABYLON.PointLight("spot", new BABYLON.Vector3(0, 30, 0));
+    ////light.diffuse = new BABYLON.Color3(1, 1, 1);
+   // light.specular = new BABYLON.Color3(0, 0, 0);
+
+    
+    // Create City
+    var box1 = BABYLON.MeshBuilder.CreateBox("box1", {width: 3, height: 12, depth: 3}, scene);
+    box1.position.y = 5.9;
+    box1.position.x = -43;
+    box1.position.z = -40;
+    var box2 = BABYLON.MeshBuilder.CreateBox("box1", {width: 3, height: 12, depth: 3}, scene);
+    box2.position.y = 5.9;
+    box2.position.x = -38;
+    box2.position.z = -40;
+
+
+    // Create a material with our land texture.
+    var groundMaterial = new BABYLON.StandardMaterial("ground", scene);
+    groundMaterial.diffuseTexture = new BABYLON.Texture("textures/grass.png", scene);
+
+    const ground = BABYLON.MeshBuilder.CreateGroundFromHeightMap("ground", "textures/heightMap.png", {width:200, height :200, subdivisions: 50, maxHeight: 30});
+
+
+    ground.material = groundMaterial;
+
+    // Add lamplights
+    //add a spotlight and later after a mesh lamp post and a bulb have been created
+    //then will make the post a parent to the bulb and 
+    //the bulb to the parent
+    const lampLight = new BABYLON.SpotLight("lampLight", new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, -1, 0), 180, 2, scene);
+    lampLight.diffuse = BABYLON.Color3.Yellow();
+    lampLight.intensity = 1;
+    lampLight.specular = new BABYLON.Color3(0, 0, 0);
+
+	//shape to extrude
+	const lampShape = [];
+    for(let i = 0; i < 20; i++) {
+        lampShape.push(new BABYLON.Vector3(Math.cos(i * Math.PI / 10), Math.sin(i * Math.PI / 10), 0));
+    }
+	lampShape.push(lampShape[0]); //close shape
+
+	//extrusion path
+    var lampPath = [];
+	lampPath.push(new BABYLON.Vector3(0, 0, 0));
+	lampPath.push(new BABYLON.Vector3(0, 10, 0));
+    for(let i = 0; i < 20; i++) {
+        lampPath.push(new BABYLON.Vector3(1 + Math.cos(Math.PI - i * Math.PI / 40), 10 + Math.sin(Math.PI - i * Math.PI / 40), 0));
+    }
+    lampPath.push(new BABYLON.Vector3(5, 11, 0));
+
+    const yellowMat = new BABYLON.StandardMaterial("yellowMat");
+    yellowMat.emissiveColor = BABYLON.Color3.Yellow();
+
+	//extrude lamp
+	const lamp = BABYLON.MeshBuilder.ExtrudeShape("lamp", {cap: BABYLON.Mesh.CAP_END, shape: lampShape, path: lampPath, scale: 0.5});
+
+
+	lamp.position.x = -42;
+    lamp.position.z = -42;
+    lamp.rotation.y = Math.PI/2;
+
+   	
+    //add bulb
+    const bulb = BABYLON.MeshBuilder.CreateSphere("bulb", {diameterX: 2, diameterZ: 0.8});
+    
+    bulb.material = yellowMat;
+    bulb.parent = lamp;
+    bulb.position.x = 4;
+    bulb.position.y = 10.5;
+
+    lampLight.parent = bulb;
+
+    //var shadowGenerator = new BABYLON.ShadowGenerator(1024, light);
+	//shadowGenerator.addShadowCaster(box2);
+    //shadowGenerator.addShadowCaster(box1);
+	//shadowGenerator.useExponentialShadowMap = true;
+
+    var shadowGenerator2 = new BABYLON.ShadowGenerator(1024, lampLight);
+    shadowGenerator2.addShadowCaster(lamp);
+    shadowGenerator2.addShadowCaster(box1);
+    shadowGenerator2.addShadowCaster(box2);
+	shadowGenerator2.useExponentialShadowMap = true;
+
+    ground.receiveShadows = true;
+    box1.receiveShadows = true;
+    return scene;
+}
+                var engine;
+                var scene;
+                initFunction = async function() {               
+                    var asyncEngineCreation = async function() {
+                        try {
+                        return createDefaultEngine();
+                        } catch(e) {
+                        console.log("the available createEngine function failed. Creating the default engine instead");
+                        return createDefaultEngine();
+                        }
+                    }
+
+                    engine = await asyncEngineCreation();
+        if (!engine) throw 'engine should not be null.';
+        scene = createScene();};
+        initFunction().then(() => {sceneToRender = scene        
+            engine.runRenderLoop(function () {
+                if (sceneToRender && sceneToRender.activeCamera) {
+                    sceneToRender.render();
+                }
+            });
+        });
+
+        // Resize
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
