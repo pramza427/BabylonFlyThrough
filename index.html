@@ -47,48 +47,681 @@
         var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); };
         const createScene = function () {
     const scene = new BABYLON.Scene(engine);
+    // true will light whole scene, false will not
+    var showGround = true;
     
-    const camera = new BABYLON.FreeCamera("Camera", new BABYLON.Vector3(-50, 1, -50), scene);
+    const camera = new BABYLON.FreeCamera("Camera", new BABYLON.Vector3(0, 10, -310), scene);
     camera.attachControl(canvas, true);
-     // Light
-   // const light = new BABYLON.PointLight("spot", new BABYLON.Vector3(0, 30, 0));
-    ////light.diffuse = new BABYLON.Color3(1, 1, 1);
-   // light.specular = new BABYLON.Color3(0, 0, 0);
+    camera.setTarget(new BABYLON.Vector3(0,30,0));
+    // Light
 
+    const light = new BABYLON.DirectionalLight("DirectionalLight", new BABYLON.Vector3(50, -60, 5), scene);
+    light.intensity = 0.4;
+    light.diffuse = new BABYLON.Color3.FromHexString("#ffcbe2");
+	light.specular = new BABYLON.Color3.FromHexString("#D5FFEC");
+    var shadowGenerator = new BABYLON.ShadowGenerator(1024, light);
     
-    // Create City
-    var box1 = BABYLON.MeshBuilder.CreateBox("box1", {width: 3, height: 12, depth: 3}, scene);
-    box1.position.y = 5.9;
-    box1.position.x = -43;
-    box1.position.z = -40;
-    var box2 = BABYLON.MeshBuilder.CreateBox("box1", {width: 3, height: 12, depth: 3}, scene);
-    box2.position.y = 5.9;
-    box2.position.x = -38;
-    box2.position.z = -40;
+    // Skybox
+	var skybox = BABYLON.MeshBuilder.CreateBox("skyBox", {size:800.0}, scene);
+	var skyboxMaterial = new BABYLON.StandardMaterial("skyBox", scene);
+	skyboxMaterial.backFaceCulling = false;
+    var files = [
+        "textures/Space/space_right.jpg",
+        "textures/Space/space_left.jpg",
+        "textures/Space/space_up.jpg",
+        "textures/Space/space_front.jpg",
+        "textures/Space/space_down.jpg",
+        "textures/Space/space_back.jpg",
+    ];
+	skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture.CreateFromImages(files, scene);
+	skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
+	skyboxMaterial.disableLighting = true;
+	skybox.material = skyboxMaterial;		
 
+    // Create objects in scene
+    var lampLights = createLamps(scene, cars);
 
-    // Create a material with our land texture.
-    var groundMaterial = new BABYLON.StandardMaterial("ground", scene);
-    groundMaterial.diffuseTexture = new BABYLON.Texture("textures/grass.png", scene);
+    var boxes = createStreet(scene);
+    
+    var buildings = createBuildings(scene);
 
-    const ground = BABYLON.MeshBuilder.CreateGroundFromHeightMap("ground", "textures/heightMap.png", {width:200, height :200, subdivisions: 50, maxHeight: 30});
+    var cars = createCars(scene);
 
+    // add shadows
+    lampLights.forEach(lamp => {
+        for(var i = 0; i < cars.length; i++) {
+            lamp.addShadowCaster(cars[i]);
+        }
+        for(var i = 0; i < buildings.length; i++){
+            lamp.addShadowCaster(buildings[i]);
+        }
+    });
 
-    ground.material = groundMaterial;
+    for(var i = 0; i < buildings.length; i++) {
+        shadowGenerator.addShadowCaster(buildings[i]);
+    }
 
-    // Add lamplights
+    // create big floating shape
+    var lightglass =  new BABYLON.StandardMaterial("lightGlassMat");
+    lightglass.emissiveColor = BABYLON.Color3.FromHexString("#CBFFE7");
+    lightglass.alpha = 0.4;
+
+    var brightglass =  new BABYLON.StandardMaterial("brightGlassMat");
+    brightglass.emissiveColor = BABYLON.Color3.FromHexString("#FE72B1");
+    brightglass.alpha = 0.8;
+
+    const bigshape = BABYLON.Mesh.CreatePolyhedron("bigshape13", {type: 13, size: 10}, scene);
+    bigshape.material = lightglass;
+    bigshape.position.y = 20;
+
+    //animate big shape
+    const bigShapeRotation = new BABYLON.Animation('bigShapeRotation', "rotation.y", 10,BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE, scene);
+    const rotationFrames = [];
+    
+    rotationFrames.push({
+        frame: 0,
+        value: 0,
+    });
+    rotationFrames.push({
+        frame: 50,
+        value: Math.PI,
+    });
+    rotationFrames.push({
+        frame: 50*2,
+        value: Math.PI*2,
+    });
+
+    bigShapeRotation.setKeys(rotationFrames);
+    bigshape.animations.push(bigShapeRotation);
+
+    // create small shape
+    const smallshape = BABYLON.Mesh.CreatePolyhedron("bigshape13", {type: 11, size: 4}, scene);
+    smallshape.material = brightglass;
+    smallshape.position.y = 20;
+
+    // animate small shape
+    const smallShapeRotationy = new BABYLON.Animation('smallShapeRotationy', "rotation.y", 10,BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE, scene);
+    const yrotationFrames = [];
+    yrotationFrames.push({
+        frame: 0,
+        value: 0,
+    });
+    yrotationFrames.push({
+        frame: 20,
+        value: -Math.PI,
+    });
+    yrotationFrames.push({
+        frame: 20*2,
+        value: -Math.PI*2,
+    });
+    smallShapeRotationy.setKeys(yrotationFrames);
+    smallshape.animations.push(smallShapeRotationy);
+
+    const smallShapeRotationz = new BABYLON.Animation('smallShapeRotationz', "rotation.x", 10,BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE, scene);
+    const zrotationFrames = [];
+    zrotationFrames.push({
+        frame: 0,
+        value: 0,
+    });
+    zrotationFrames.push({
+        frame: 20,
+        value: -Math.PI*2,
+    });
+    zrotationFrames.push({
+        frame: 20*2,
+        value: -Math.PI*4,
+    });
+    smallShapeRotationz.setKeys(zrotationFrames);
+    smallshape.animations.push(smallShapeRotationz);
+   
+
+    scene.beginAnimation(bigshape, 0, 100, true);
+    scene.beginAnimation(smallshape, 0, 40, true);
+
+    // animate camera
+    const cameraAnimation = new BABYLON.Animation('cameraAnimation', "position.z", 10,BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT, scene);
+    const cameraZFrames = [];
+    cameraZFrames.push({
+        frame: 0,
+        value: -310,
+    });
+    cameraZFrames.push({
+        frame: 300,
+        value: -100,
+    });
+    cameraZFrames.push({
+        frame: 400,
+        value: -100,
+    });
+    cameraZFrames.push({
+        frame: 550,
+        value: -310,
+    });
+    cameraAnimation.setKeys(cameraZFrames);
+    camera.animations.push(cameraAnimation);
+
+    scene.beginAnimation(camera, 0, 550, true);
+
+    return scene;
+}
+
+const createCars = function(scene) {
+    // create car variables
+    var car1 = BABYLON.MeshBuilder.CreateBox("car1", {width:4, height: 2, depth: 6}, scene);
+    car1.position.z = -100;
+    car1.position.y = 1;
+    car1.position.x = -5;
+
+    const animationCarSpeed = 150;
+    // add animation to car1
+    const zMove = new BABYLON.Animation('zMove', "position.z", 10,BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE, scene);
+    const zkeyFrames = [];
+    
+    zkeyFrames.push({
+        frame: 0,
+        value: -100,
+    });
+    zkeyFrames.push({
+        frame: animationCarSpeed,
+        value: -300,
+    });
+    zkeyFrames.push({
+        frame: animationCarSpeed+1,
+        value: -300,
+    });
+    zkeyFrames.push({
+        frame: animationCarSpeed*2,
+        value: -100,
+    });
+    zMove.setKeys(zkeyFrames);
+    car1.animations.push(zMove);
+
+    // create car 2
+    var car2 = BABYLON.MeshBuilder.CreateBox("car2", {width:6, height: 2, depth: 4}, scene);
+    car2.position.z = -234;
+    car2.position.y = 1;
+    car2.position.x = -50;
+
+    // add animation to car 2
+    const xMoveFirst = new BABYLON.Animation('xMoveFirst', "position.x", 10,BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE, scene);
+    const xkeyFramesFirst = [];
+    // set keyframes for the z axis
+    xkeyFramesFirst.push({
+        frame: 0,
+        value: -30,
+    });
+    xkeyFramesFirst.push({
+        frame: animationCarSpeed,
+        value: 30,
+    });
+    xkeyFramesFirst.push({
+        frame: animationCarSpeed+1,
+        value: 30,
+    });
+    xkeyFramesFirst.push({
+        frame: animationCarSpeed*2,
+        value: -30,
+    });
+    xMoveFirst.setKeys(xkeyFramesFirst);
+    car2.animations.push(xMoveFirst);
+
+    // create car 3
+    var car3 = BABYLON.MeshBuilder.CreateBox("car3", {width:6, height: 2, depth: 4}, scene);
+    car3.position.z = -170;
+    car3.position.y = 1;
+    car3.position.x = 30;
+
+    // add animation to car 3
+    const xMoveSecond = new BABYLON.Animation('xMoveSecond', "position.x", 10,BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE, scene);
+    const xkeyFramesSecond = [];
+    // set keyframes for the z axis
+    xkeyFramesSecond.push({
+        frame: 0,
+        value: 30,
+    });
+    xkeyFramesSecond.push({
+        frame: 50,
+        value: -30,
+    });
+    xkeyFramesSecond.push({
+        frame: 50+1,
+        value: -30,
+    });
+    xkeyFramesSecond.push({
+        frame: 50*2,
+        value: 30,
+    });
+    xMoveSecond.setKeys(xkeyFramesSecond);
+    car3.animations.push(xMoveSecond);
+
+    scene.beginAnimation(car1, 0, 4*animationCarSpeed, true);
+    scene.beginAnimation(car2, 0, 4*animationCarSpeed, true);
+    scene.beginAnimation(car3, 0, 4*animationCarSpeed, true);
+
+    var cars = [];
+    cars.push(car1);
+    cars.push(car2);
+    return cars;
+}
+
+const createBuildings = function(scene) {
+    // holds all buildings
+    var buildings = [];
+    // create a glass material
+    var glass =  new BABYLON.StandardMaterial("glassMat");
+    glass.diffuseColor = BABYLON.Color3.FromHexString("#B5EEF5");
+    glass.alpha = 0.95;
+    // create a lightglass material
+    var lightglass =  new BABYLON.StandardMaterial("lightGlassMat");
+    lightglass.emissiveColor = BABYLON.Color3.FromHexString("#B5EEF5");
+    lightglass.alpha = 0.4;
+
+    // concrete material
+    var concreteMaterial = new BABYLON.StandardMaterial("concreteMaterial", scene);
+    concreteMaterial.diffuseTexture = new BABYLON.Texture("textures/speckles.jpg", scene);
+    concreteMaterial.diffuseTexture.uScale = 10;
+    concreteMaterial.diffuseTexture.vScale = 10;
+
+    // make 12 default buildings
+    for(var i = 0; i<12; i++){
+        // vary buildings by heights
+        var rand = Math.floor(Math.random()*10);
+        var height = 28+(rand*4);
+        // main body of the building
+        var building = BABYLON.MeshBuilder.CreateBox("buildingBody"+i, {width:12, height: height, depth: 12}, scene);
+        
+        building.material = glass;
+
+        
+        // create edges for the building to add depth
+        building.position.y = height/2;
+        var edge1 = BABYLON.MeshBuilder.CreateBox("edge1", {width:0.5, height: height, depth: 0.5}, scene);
+        edge1.position.x = 6;
+        edge1.position.z = 6;
+        edge1.parent = building;
+        var edge2 = BABYLON.MeshBuilder.CreateBox("edge2", {width:0.5, height: height, depth: 0.5}, scene);
+        edge2.position.x = -6;
+        edge2.position.z = 6;
+        edge2.parent = building;
+        var edge3 = BABYLON.MeshBuilder.CreateBox("edge3", {width:0.5, height: height, depth: 0.5}, scene);
+        edge3.position.x = 6;
+        edge3.position.z = -6;
+        edge3.parent = building;
+        var edge4 = BABYLON.MeshBuilder.CreateBox("edge4", {width:0.5, height: height, depth: 0.5}, scene);
+        edge4.position.x = -6;
+        edge4.position.z = -6;
+        edge4.parent = building;
+        // add floors to the building
+        for(var j = 0; j < height/4; j++){
+            var vertical = BABYLON.MeshBuilder.CreateBox("floor"+j, {width:12.5, height: 0.2, depth: 12.5}, scene);
+            vertical.position.y = -(height/2) + 4*j;
+            vertical.parent = building;
+        }
+        var vertical = BABYLON.MeshBuilder.CreateBox("floor"+j, {width:12.5, height: 0.5, depth: 12.5}, scene);
+        vertical.position.y = height/2;
+        vertical.parent = building;
+
+        var divider1 = BABYLON.MeshBuilder.CreateBox("divider1", {width:0.2, height: height, depth: 12.5}, scene);
+        divider1.parent = building;
+        var divider1 = BABYLON.MeshBuilder.CreateBox("divider1", {width:12.5, height: height, depth: 0.2}, scene);
+        divider1.parent = building;
+
+        // create light up rooms
+        for(var j = 0; j < 3; j++){
+            var lightroom = BABYLON.MeshBuilder.CreateBox("lightroom"+j, {width:6, height: 4, depth: 6}, scene);
+            lightroom.material = lightglass;
+            lightroom.parent = building;
+            var lightposition = Math.floor(Math.random()*4);
+            if(lightposition == 0){
+                lightroom.position.x = 3.01;
+                lightroom.position.z = 3.01;
+            }
+            else if(lightposition == 1){
+                lightroom.position.x = -3.01;
+                lightroom.position.z = 3.01;
+            }
+            else if(lightposition == 2){
+                lightroom.position.x = 3.01;
+                lightroom.position.z = -3.01;
+            }
+            else{
+                lightroom.position.x = -3.01;
+                lightroom.position.z = -3.01;
+            }
+            lightroom.position.y = -height/2+6 + (4*Math.floor(Math.random()*(height/4 - 6) ))
+        }
+        building.receiveShadows = true;
+        // add building to array
+        buildings.push(building);
+    } 
+
+    // Make filler building 2
+    for(var i = 0; i < 4; i++){
+        height = 30 + 10*Math.floor(Math.random()*3)
+        block1 = BABYLON.MeshBuilder.CreateBox("block1", {width: 16, height: 8, depth: 10}, scene);
+        block1.position.y = 4;
+        block1.material = glass;
+        block2 = BABYLON.MeshBuilder.CreateBox("block2", {width: 16, height: height, depth: 10}, scene);
+        block2.position.y = height/2 + 7;
+        block2.material = glass;
+        block2.parent = block1;
+        block3 = BABYLON.MeshBuilder.CreateBox("block3", {width: 14, height: 3, depth: 8}, scene);
+        block3.position.y = 5.5;
+        block3.material = concreteMaterial;
+        block3.parent = block1;
+
+        // create edges for bottom block
+        var edge1 = BABYLON.MeshBuilder.CreateBox("edge1", {width:0.5, height: 8, depth: 0.5}, scene);
+        edge1.position.x = 8;
+        edge1.position.z = 5;
+        edge1.parent = block1;
+        var edge2 = BABYLON.MeshBuilder.CreateBox("edge2", {width:0.5, height: 8, depth: 0.5}, scene);
+        edge2.position.x = -8;
+        edge2.position.z = 5;
+        edge2.parent = block1;
+        var edge3 = BABYLON.MeshBuilder.CreateBox("edge3", {width:0.5, height: 8, depth: 0.5}, scene);
+        edge3.position.x = 8;
+        edge3.position.z = -5;
+        edge3.parent = block1;
+        var edge4 = BABYLON.MeshBuilder.CreateBox("edge4", {width:0.5, height: 8, depth: 0.5}, scene);
+        edge4.position.x = -8;
+        edge4.position.z = -5;
+        edge4.parent = block1;
+        var edge5 = BABYLON.MeshBuilder.CreateBox("edge5", {width:16.5, height: 4, depth: 0.5}, scene);
+        edge5.position.z = -5;
+        edge5.position.y = 2.25;
+        edge5.parent = block1;
+        var edge6 = BABYLON.MeshBuilder.CreateBox("edge6", {width:16.5, height: 4, depth: 0.5}, scene);
+        edge6.position.z = 5;
+        edge6.position.y = 2.25;
+        edge6.parent = block1;
+        var edge7 = BABYLON.MeshBuilder.CreateBox("edge7", {width:0.5, height: 5, depth: 10.5}, scene);
+        edge7.position.x = 8;
+        edge7.position.y = 1.75;
+        edge7.parent = block1;
+        var edge8 = BABYLON.MeshBuilder.CreateBox("edge8", {width:0.5, height: 5, depth: 10.5}, scene);
+        edge8.position.x = -8;
+        edge8.position.y = 1.75;
+        edge8.parent = block1;
+
+        var edge10 = BABYLON.MeshBuilder.CreateBox("edge10", {width:0.5, height: height+0.5, depth: 16}, scene);
+        edge10.position.y = 0.25;
+        edge10.rotation.y = Math.PI/2;
+        edge10.parent = block2;
+
+        for(var j = 0; j < 6; j++){
+            var vertical = BABYLON.MeshBuilder.CreateBox("vertical"+j, {width:0.5, height: height+0.5, depth: 10.5}, scene);
+            vertical.parent = block2;
+            vertical.position.x = -8 + 3.2*j;
+        }
+        building.receiveShadows = true;
+        buildings.push(block1);
+    }
+
+    // Create the main moving buildings
+    //building path for both main buildings
+	const mainBuildingShape = [
+		 	new BABYLON.Vector3(0, 0, 0),
+			new BABYLON.Vector3(0, 25, 0),
+			new BABYLON.Vector3(12, 25, 0),
+			new BABYLON.Vector3(12, 0, 0),
+	];
+	mainBuildingShape.push(mainBuildingShape[0]);  //close profile
+	
+    // paths for both buildings
+	const mainBuilding1Path = [
+		new BABYLON.Vector3(0, 0, 0),
+		new BABYLON.Vector3(0, 36, 0),
+        new BABYLON.Vector3(0.01, 36, 0),
+	];
+    const mainBuilding2Path = [
+        new BABYLON.Vector3(0, 0, 0),
+		new BABYLON.Vector3(0, 50, 0),
+        new BABYLON.Vector3(0.01, 50, 0),
+    ];
+	
+	const scaling = (index, distance) => {
+        if(index+1 > 2){
+            return 0.5;
+        }
+		return 1;
+	};
+
+	const mainBuilding1 = BABYLON.MeshBuilder.ExtrudeShapeCustom("MainBuilding1", {shape: mainBuildingShape, path: mainBuilding1Path, scaleFunction: scaling, sideOrientation: BABYLON.Mesh.DOUBLESIDE}, scene);
+    const mainBuilding2 = BABYLON.MeshBuilder.ExtrudeShapeCustom("MainBuilding2", {shape: mainBuildingShape, path: mainBuilding2Path, scaleFunction: scaling, sideOrientation: BABYLON.Mesh.DOUBLESIDE}, scene);
+    mainBuilding2.rotation.y = Math.PI;
+    mainBuilding1.material = glass;
+    mainBuilding2.material = glass;
+
+    // add floors to main buildings
+    for(var j = 0; j < 9; j++){
+        var vertical = BABYLON.MeshBuilder.CreateBox("floor"+j, {width:25.5, height: 0.2, depth: 12.5}, scene);
+        vertical.position.y =  4+ 4*j;
+        vertical.position.x = -12.5;
+        vertical.position.z = -6;
+        vertical.parent = mainBuilding1;
+    }
+    for(var j = 0; j < 12; j++){
+        var vertical = BABYLON.MeshBuilder.CreateBox("floor"+j, {width:25.5, height: 0.2, depth: 12.5}, scene);
+        vertical.position.y =  4+ 4*j;
+        vertical.position.x = -12.5;
+        vertical.position.z = -6;
+        vertical.parent = mainBuilding2;
+    }
+    mainBuilding1.position.z = -60;
+    mainBuilding2.position.z = -72;
+    
+    //animations for buildings
+    const animationCarSpeed = 150;
+    // add animation to mainBuilding1
+    const xLeft = new BABYLON.Animation('xLeft', "position.x", 10,BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE, scene);
+    const xleftFrames = [];
+    
+    xleftFrames.push({
+        frame: 0,
+        value: 0,
+    });
+    xleftFrames.push({
+        frame: animationCarSpeed,
+        value: 0,
+    });
+    xleftFrames.push({
+        frame: animationCarSpeed*2,
+        value: -10,
+    });
+    xleftFrames.push({
+        frame: animationCarSpeed*3,
+        value: -10,
+    });
+    xleftFrames.push({
+        frame: animationCarSpeed*4,
+        value: 0,
+    });
+    xLeft.setKeys(xleftFrames);
+    mainBuilding1.animations.push(xLeft);
+
+    // add animation to mainBuilding2
+    const xRight = new BABYLON.Animation('xRight', "position.x", 10,BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE, scene);
+    const xrightFrames = [];
+    
+    xrightFrames.push({
+        frame: 0,
+        value: 0,
+    });
+    xrightFrames.push({
+        frame: animationCarSpeed,
+        value: 0,
+    });
+    xrightFrames.push({
+        frame: animationCarSpeed*2,
+        value: 10,
+    });
+    xrightFrames.push({
+        frame: animationCarSpeed*3,
+        value: 10,
+    });
+    xrightFrames.push({
+        frame: animationCarSpeed*4,
+        value: 0,
+    });
+    xRight.setKeys(xrightFrames);
+    mainBuilding2.animations.push(xRight);
+
+    scene.beginAnimation(mainBuilding1, 0, 4*animationCarSpeed, true);
+    scene.beginAnimation(mainBuilding2, 0, 4*animationCarSpeed, true);
+    
+    buildings.push(mainBuilding1);
+    buildings.push(mainBuilding2);
+
+    // There are 16 buildings total
+    // First 12 are basic
+    // Other 4 are complex
+
+    // Left Side Buildings
+    // building0 position
+    buildings[0].position.x = -22;
+    buildings[0].position.z = -257;
+
+    // building1 position
+    buildings[1].position.x = -22;
+    buildings[1].position.z = -207;
+
+    // building2 position
+    buildings[2].position.x = -22;
+    buildings[2].position.z = -147;
+    
+    // building3 position
+    buildings[3].position.x = -43;
+    buildings[3].position.z = -193;
+
+    buildings[4].position.x = -25;
+    buildings[4].position.z = -193;
+
+    buildings[5].position.x = -21;
+    buildings[5].position.z = -134;
+
+    buildings[12].rotation.y = Math.PI/2;
+    buildings[12].position.x = -25;
+    buildings[12].position.z = -272;
+
+    buildings[13].position.x = -42;
+    buildings[13].position.z = -140;
+
+    // Right Side Buildings
+
+    // building4 position
+    buildings[6].position.x = 22;
+    buildings[6].position.z = -147;
+
+    // building5 position
+    buildings[7].position.x = 22;
+    buildings[7].position.z = -190;
+
+    // building6 position
+    buildings[8].position.x = 22;
+    buildings[8].position.z = -252;
+
+    // building7 position
+    buildings[9].position.x = 24;
+    buildings[9].position.z = -267;
+
+    // building10 position
+    buildings[10].position.x = 45;
+    buildings[10].position.z = -200;
+
+    // building11 position
+    buildings[11].position.x = 42;
+    buildings[11].position.z = -140;
+
+    // building10 position
+    buildings[14].rotation.y = Math.PI/4;
+    buildings[14].position.x = 29;
+    buildings[14].position.z = -205;
+
+    // building11 position
+    buildings[15].position.x = 22;
+    buildings[15].position.z = -132;
+    
+    return buildings;
+}
+
+const createStreet = function(scene) {
+    // street material
+    var streetMaterial = new BABYLON.StandardMaterial("streetMaterial", scene);
+    streetMaterial.diffuseTexture = new BABYLON.Texture("textures/speckles.jpg", scene);
+    streetMaterial.diffuseTexture.uScale = 6;
+    streetMaterial.maxSimultaneousLights = 9;
+    
+    // Create the Main street and add
+    var street1 = BABYLON.MeshBuilder.CreateBox("street1", {width:20, height: 0.5, depth: 200}, scene);
+    street1.position.y = 0;
+    street1.position.x = 0;
+    street1.position.z = -190;
+    street1.receiveShadows = true;
+    street1.material = streetMaterial;
+    // Create side Streets
+    var street2 = BABYLON.MeshBuilder.CreateBox("street2", {width:20, height: 0.49, depth: 200}, scene);
+    street2.position.y = 0;
+    street2.position.x = 0;
+    street2.position.z = -170;
+    street2.rotation.y = Math.PI/2;
+    street2.receiveShadows = true;
+    street2.material = streetMaterial;
+
+    var street3 = BABYLON.MeshBuilder.CreateBox("street3", {width:30, height: 0.49, depth: 200}, scene);
+    street3.position.y = 0;
+    street3.position.x = 0;
+    street3.position.z = -105;
+    street3.rotation.y = Math.PI/2;
+    street3.receiveShadows = true;
+    street3.material = streetMaterial;
+
+    var street4 = BABYLON.MeshBuilder.CreateBox("street4", {width:20, height: 0.49, depth: 200}, scene);
+    street4.position.y = 0;
+    street4.position.x = 0;
+    street4.position.z = -230;
+    street4.rotation.y = Math.PI/2;
+    street4.receiveShadows = true;
+    street4.material = streetMaterial;
+
+    // Create Curbs
+    var sidewalkMaterial = new BABYLON.StandardMaterial("sidewalkMaterial", scene);
+    sidewalkMaterial.diffuseTexture = new BABYLON.Texture("textures/sand.jpg", scene);
+    sidewalkMaterial.maxSimultaneousLights = 8;
+    for(var i = 0; i < 3; i++){
+        var curb1 = BABYLON.MeshBuilder.CreateBox("curb"+i, {width:65, height: 0.5, depth: 40}, scene);
+        curb1.position.y = 0.5;
+        curb1.position.x = -42;
+        curb1.position.z = -260+(60*i);
+        curb1.material = sidewalkMaterial;
+        curb1.receiveShadows = true;
+        var curb2 = BABYLON.MeshBuilder.CreateBox("curb"+i, {width:65, height: 0.5, depth: 40}, scene);
+        curb2.position.y = 0.5;
+        curb2.position.x = 42;
+        curb2.position.z = -260+(60*i);
+        curb2.material = sidewalkMaterial;
+        curb2.receiveShadows = true;
+    }
+    var finalCurb = BABYLON.MeshBuilder.CreateBox("finalCurb", {width:200, height: 0.5, depth: 40}, scene);
+    finalCurb.position.y = 0.5;
+    finalCurb.position.z = -70;
+    finalCurb.material = sidewalkMaterial;
+    var addShadow = [];
+
+    return addShadow;
+}
+
+const createLamps = function(scene) {
+	
     //add a spotlight and later after a mesh lamp post and a bulb have been created
     //then will make the post a parent to the bulb and 
     //the bulb to the parent
-    const lampLight = new BABYLON.SpotLight("lampLight", new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, -1, 0), 180, 2, scene);
-    lampLight.diffuse = BABYLON.Color3.Yellow();
-    lampLight.intensity = 1;
-    lampLight.specular = new BABYLON.Color3(0, 0, 0);
+    
 
 	//shape to extrude
 	const lampShape = [];
     for(let i = 0; i < 20; i++) {
-        lampShape.push(new BABYLON.Vector3(Math.cos(i * Math.PI / 10), Math.sin(i * Math.PI / 10), 0));
+        lampShape.push(new BABYLON.Vector3(Math.cos(i * Math.PI / 10)/2, Math.sin(i * Math.PI / 10)/2, 0));
     }
 	lampShape.push(lampShape[0]); //close shape
 
@@ -102,45 +735,58 @@
     lampPath.push(new BABYLON.Vector3(5, 11, 0));
 
     const yellowMat = new BABYLON.StandardMaterial("yellowMat");
-    yellowMat.emissiveColor = BABYLON.Color3.Yellow();
+    yellowMat.emissiveColor = BABYLON.Color3.FromHexString("#F0FF92");
 
-	//extrude lamp
-	const lamp = BABYLON.MeshBuilder.ExtrudeShape("lamp", {cap: BABYLON.Mesh.CAP_END, shape: lampShape, path: lampPath, scale: 0.5});
+    var lamps = [];
+    var lampLights = [];
+    for(var i = 0; i < 6; i++){
+        //extrude lamp
+        const lamp = BABYLON.MeshBuilder.ExtrudeShape("lamp", {cap: BABYLON.Mesh.CAP_END, shape: lampShape, path: lampPath, scale: 0.5});
+        
+        //add bulb
+        const bulb = BABYLON.MeshBuilder.CreateSphere("bulb", {diameterX: 1.5, diameterZ: 0.4, diameterY: 0.5}, scene);
+            
+        bulb.material = yellowMat;
+        bulb.parent = lamp;
+        bulb.position.x = 4;
+        bulb.position.y = 10.7;
 
+        //create light and attach to bulb
+        const lampLight = new BABYLON.SpotLight("lampLight", BABYLON.Vector3.Zero(), new BABYLON.Vector3(0, -1, 0), Math.PI*0.7, 4, scene);
+        lampLight.diffuse = BABYLON.Color3.FromHexString("#F0FF92");
+        lampLight.intensity = 1.5;
+        var shadowGenerator = new BABYLON.ShadowGenerator(1024, lampLight);
 
-	lamp.position.x = -42;
-    lamp.position.z = -42;
-    lamp.rotation.y = Math.PI/2;
+        lampLight.parent = bulb;
 
-   	
-    //add bulb
-    const bulb = BABYLON.MeshBuilder.CreateSphere("bulb", {diameterX: 2, diameterZ: 0.8});
-    
-    bulb.material = yellowMat;
-    bulb.parent = lamp;
-    bulb.position.x = 4;
-    bulb.position.y = 10.5;
+        lamps.push(lamp);
+        lampLights.push(shadowGenerator);
+    }
 
-    lampLight.parent = bulb;
+    lamps[0].position.x = -11;
+    lamps[0].position.z = -245;
 
-    //var shadowGenerator = new BABYLON.ShadowGenerator(1024, light);
-	//shadowGenerator.addShadowCaster(box2);
-    //shadowGenerator.addShadowCaster(box1);
-	//shadowGenerator.useExponentialShadowMap = true;
+    lamps[1].position.x = 11;
+    lamps[1].position.z = -277;
+    lamps[1].rotation.y = Math.PI;
 
-    var shadowGenerator2 = new BABYLON.ShadowGenerator(1024, lampLight);
-    shadowGenerator2.addShadowCaster(lamp);
-    shadowGenerator2.addShadowCaster(box1);
-    shadowGenerator2.addShadowCaster(box2);
-	shadowGenerator2.useExponentialShadowMap = true;
+    lamps[2].position.x = -11;
+    lamps[2].position.z = -185;
 
-    ground.receiveShadows = true;
-    box1.receiveShadows = true;
-    return scene;
+    lamps[3].position.x = 11;
+    lamps[3].position.z = -217;
+    lamps[3].rotation.y = Math.PI;
+
+    lamps[4].position.x = -11;
+    lamps[4].position.z = -125;
+
+    lamps[5].position.x = 11;
+    lamps[5].position.z = -157;
+    lamps[5].rotation.y = Math.PI;
+
+    return lampLights;
 }
-                var engine;
-                var scene;
-                initFunction = async function() {               
+                window.initFunction = async function() {               
                     var asyncEngineCreation = async function() {
                         try {
                         return createDefaultEngine();
@@ -150,9 +796,9 @@
                         }
                     }
 
-                    engine = await asyncEngineCreation();
+                    window.engine = await asyncEngineCreation();
         if (!engine) throw 'engine should not be null.';
-        scene = createScene();};
+        window.scene = createScene();};
         initFunction().then(() => {sceneToRender = scene        
             engine.runRenderLoop(function () {
                 if (sceneToRender && sceneToRender.activeCamera) {
